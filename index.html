@@ -6,11 +6,11 @@
 <title>Habit tracker</title>
 <style>
   body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     max-width: 500px;
     margin: 0 auto;
     padding: 0 1em;
-    background: #f9f9f9;
+    background: #d2cfc6;
   }
   /* 固定メニューバー */
   #navbar {
@@ -18,9 +18,9 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 50px;
-    background: #fff;
-    border-bottom: 1px solid #ccc;
+    height: 65px;
+    background: #b4b1a8;
+    border-bottom: 1px solid #999;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -29,9 +29,10 @@
     z-index: 1000;
   }
   #date-time {
-    font-weight: bold;
-    color: #333;
-    font-size: 0.9em;
+    font-weight: 600;
+    font-size: 1.3em;
+    letter-spacing: 0.15em;
+    color: #000000;
     user-select: none;
   }
   #habit-form {
@@ -39,109 +40,85 @@
     align-items: center;
   }
   #habit-name {
-    padding: 0.3em 0.5em;
+    padding: 0.4em 0.6em;
     font-size: 1em;
-    border: 1px solid #ccc;
-    border-radius: 4px 0 0 4px;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    background: transparent;
     outline: none;
+    color: #000000;
+    width: 180px;
+  }
+  #habit-name::placeholder {
+    color: #666;
   }
   #habit-name:focus {
-    border-color: #007bff;
+    border-color: #000000;
   }
   #add-btn {
-    padding: 0.4em 0.8em;
+    margin-left: 0.5em;
+    padding: 0.45em 1.1em;
     font-size: 1em;
     cursor: pointer;
-    border: 1px solid #007bff;
-    background: #007bff;
+    border: 1px solid #000000;
+    background: #b4b1a8;
     color: white;
-    border-radius: 0 4px 4px 0;
+    border-radius: 2px;
     transition: background 0.3s;
+    font-weight: 600;
   }
   #add-btn:hover {
-    background: #0056b3;
-  }
-
-  /* ページトップにいるときはフォームは中央に配置 */
-  #habit-form.top {
-    position: fixed;
-    top: 60px; /* ナビバーの少し下 */
-    left: 50%;
-    transform: translateX(-50%);
-    background: #fff;
-    padding: 0.5em 1em;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    z-index: 999;
+    background: #9f9c91;
   }
 
   /* ページの下のコンテンツ */
   #content {
-    margin-top: 120px; /* ナビバー+フォームのスペース */
+    margin-top: 80px; /* ナビバーの高さ+余白 */
+    min-height: 1200px; /* スクロール確認用に大きく */
   }
 </style>
 </head>
 <body>
 
 <div id="navbar">
-  <div id="date-time">--/-- (---) --:--</div>
-  <!-- habit-formは最初はこの位置では非表示 -->
+  <div id="date-time">--/--  --:--</div>
+  <form id="habit-form">
+    <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
+    <button type="submit" id="add-btn">ADD</button>
+  </form>
 </div>
 
-<form id="habit-form" class="top">
-  <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
-  <button type="submit" id="add-btn">Add</button>
-</form>
-
 <div id="content">
-  <!-- ここにリストなどが入ります -->
-  <!-- 今は仮のテキスト -->
-  <p>習慣リストやその他のコンテンツがここに入ります。</p>
+  <!-- 今は何も表示しません -->
 </div>
 
 <script>
-  // 曜日の略称配列（日曜始まり）
-  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
+  // 日付・時間の更新（曜日なし）
+  function pad(num) {
+    return num.toString().padStart(2, '0');
+  }
   function updateDateTime() {
     const now = new Date();
-    const MM = String(now.getMonth() + 1).padStart(2, "0");
-    const DD = String(now.getDate()).padStart(2, "0");
-    const DDD = weekdays[now.getDay()];
-    const HH = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-
-    const formatted = `${MM}/${DD} (${DDD}) ${HH}:${mm}`;
-    document.getElementById("date-time").textContent = formatted;
+    const MM = pad(now.getMonth() + 1);
+    const DD = pad(now.getDate());
+    const HH = pad(now.getHours());
+    const mm = pad(now.getMinutes());
+    const formatted = `${MM}/${DD} ${HH}:${mm}`;
+    document.getElementById('date-time').textContent = formatted;
   }
-
-  // 1分毎に更新
   updateDateTime();
   setInterval(updateDateTime, 60000);
 
-  // フォームの位置切り替え処理
-  const habitForm = document.getElementById("habit-form");
-
-  function checkScroll() {
-    if(window.scrollY === 0) {
-      habitForm.classList.add("top");
-      if (!habitForm.parentElement) {
-        document.body.appendChild(habitForm);
-      }
-    } else {
-      habitForm.classList.remove("top");
-      const navbar = document.getElementById("navbar");
-      if (habitForm.parentElement !== navbar) {
-        navbar.appendChild(habitForm);
-      }
-    }
-  }
-
-  window.addEventListener("scroll", checkScroll);
-  // 初回実行
-  checkScroll();
-
-  // ここに習慣追加の処理などを後で足せます
+  // 追加だけ動くテスト用（何も画面に追加しません）
+  const form = document.getElementById('habit-form');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const input = document.getElementById('habit-name');
+    if (input.value.trim() === '') return;
+    // テストなので画面に表示はしないがconsoleに出す
+    console.log('Added habit:', input.value.trim());
+    input.value = '';
+  });
 </script>
 
 </body>
