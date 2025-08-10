@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Habit tracker</title>
 <style>
+  /* 基本スタイル */
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     max-width: 500px;
     margin: 0 auto;
     padding: 0 1em;
-    background: #fffcf5;
+    background: #ffffff;
   }
   /* 固定メニューバー */
   #navbar {
@@ -19,8 +20,8 @@
     left: 0;
     right: 0;
     height: 65px;
-    background: #d9d7d3;
-    border-bottom: 1px solid #999;
+    background: #f0f5fd;
+    border-bottom: 1px solid #ccc;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -31,73 +32,122 @@
   #title {
     font-weight: 700;
     font-size: 1.5em;
-    color: #000000;
+    color: #000;
     user-select: none;
   }
+  /* フォームの共通 */
   #habit-form {
     display: flex;
     align-items: center;
+    border-radius: 3px;
+    box-sizing: border-box;
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease,
+      width 0.3s ease,
+      height 0.3s ease,
+      top 0.3s ease,
+      left 0.3s ease;
+    z-index: 999;
+  }
+  /* フォーム：ページトップ（大きい状態） */
+  #habit-form.top {
     position: fixed;
     top: 80px;
     left: 50%;
     transform: translateX(-50%);
+    width: 450px;
+    height: 50px;
     background: transparent;
-    padding: 0.3em;
-    border-radius: 3px;
-    transition: opacity 0.3s ease;
-    z-index: 999;
     opacity: 1;
   }
+  /* フォーム：メニューバー内（小さい状態） */
   #habit-form.in-navbar {
     position: static;
-    transform: none;
-    background: transparent;
-    padding: 0;
+    width: 200px;
+    height: 34px;
     opacity: 0;
+    transform: none;
   }
-  #habit-form.visible {
+  #habit-form.in-navbar.visible {
     opacity: 1;
   }
+  /* 入力欄 */
   #habit-name {
+    flex: 1;
+    font-size: 1.25em;
     padding: 0.4em 0.6em;
-    font-size: 1em;
-    border: 1px solid #000000;
+    border: 1px solid #000;
     border-radius: 3px;
     background: transparent;
     outline: none;
-    color: #000000;
-    width: 180px;
-    height: 34px;
+    color: #000;
     box-sizing: border-box;
+    height: 100%;
   }
   #habit-name::placeholder {
     color: #666;
   }
   #habit-name:focus {
-    border-color: #000000;
+    border-color: #000;
   }
+  /* ボタン */
   #add-btn {
     margin-left: 0.5em;
     padding: 0 1.2em;
-    font-size: 1em;
+    font-size: 1.25em;
     cursor: pointer;
-    border: 1px solid #000000;
-    background: #d9d7d3;
+    border: 1px solid #000;
+    background: #f0f5fd;
     color: black;
     border-radius: 3px;
     font-weight: 600;
-    height: 34px;
+    height: 100%;
     box-sizing: border-box;
     transition: background 0.3s;
   }
   #add-btn:hover {
-    background: #bfbdb8;
+    background: #d8e4fc;
   }
 
-  /* ページの下のコンテンツ */
+  /* 習慣リスト */
+  #habit-list {
+    margin-top: 130px; /* ナビバー＋フォームのスペース */
+    list-style: none;
+    padding: 0;
+  }
+  #habit-list li {
+    border: 1px solid #000;
+    border-radius: 3px;
+    padding: 0.5em 0.8em;
+    margin-bottom: 0.7em;
+    background: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: grab;
+  }
+  #habit-list li:active {
+    cursor: grabbing;
+  }
+  .habit-text {
+    user-select: none;
+    flex-grow: 1;
+  }
+  .delete-btn {
+    background: transparent;
+    border: none;
+    color: #900;
+    font-weight: bold;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-left: 1em;
+    user-select: none;
+  }
+
+  /* スクロール用に十分な高さ */
   #content {
-    margin-top: 120px; /* ナビバーの高さ+フォームのスペース */
-    min-height: 1200px; /* スクロール確認用に大きく */
+    min-height: 1500px;
   }
 </style>
 </head>
@@ -105,47 +155,57 @@
 
 <div id="navbar">
   <div id="title">Habit Tracker</div>
-  <form id="habit-form" class="visible">
-    <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
+  <form id="habit-form" class="top" autocomplete="off">
+    <input type="text" id="habit-name" placeholder="Add new habit" required />
     <button type="submit" id="add-btn">ADD</button>
   </form>
 </div>
 
 <div id="content">
-  <!-- コンテンツここに -->
+  <ul id="habit-list"></ul>
 </div>
 
 <script>
   const habitForm = document.getElementById('habit-form');
+  const habitNameInput = document.getElementById('habit-name');
+  const habitList = document.getElementById('habit-list');
   const navbar = document.getElementById('navbar');
 
-  // スクロールに応じてフォームの位置と表示切り替え（フェード付き）
+  // スクロールでフォームの位置切り替え・アニメーション制御
   function checkScroll() {
     if(window.scrollY === 0) {
-      // ページトップなら画面中央固定、フォーム表示
-      if(habitForm.classList.contains('in-navbar')) {
-        habitForm.classList.remove('in-navbar');
-        // 少し遅延させてフェードイン
-        setTimeout(() => habitForm.classList.add('visible'), 10);
+      // ページトップ：フォームを大きく中央固定表示
+      if(!habitForm.classList.contains('top')) {
+        habitForm.classList.add('top');
+        habitForm.classList.remove('in-navbar', 'visible');
+        habitForm.style.opacity = '1';
       }
       habitForm.style.position = 'fixed';
       habitForm.style.top = '80px';
       habitForm.style.left = '50%';
       habitForm.style.transform = 'translateX(-50%)';
     } else {
-      // スクロールしたらメニューバー内に移動してフェードアウト後表示
+      // スクロール中：フォームはメニューバー内に小さく表示
       if(!habitForm.classList.contains('in-navbar')) {
-        habitForm.classList.remove('visible');
+        // フェードアウト（大きいフォーム）
+        habitForm.style.opacity = '0';
         setTimeout(() => {
+          habitForm.classList.remove('top');
           habitForm.classList.add('in-navbar');
-          habitForm.classList.add('visible');
-          if(habitForm.parentElement !== navbar) {
-            navbar.appendChild(habitForm);
-          }
           habitForm.style.position = 'static';
           habitForm.style.top = '';
           habitForm.style.left = '';
-          habitForm.style.transform = '';
+          habitForm.style.transform = 'none';
+          habitForm.style.opacity = '0';
+          // メニューバーに移動
+          if (habitForm.parentElement !== navbar) {
+            navbar.appendChild(habitForm);
+          }
+          // フェードイン（小さいフォーム）
+          setTimeout(() => {
+            habitForm.classList.add('visible');
+            habitForm.style.opacity = '1';
+          }, 50);
         }, 300);
       }
     }
@@ -153,15 +213,83 @@
   window.addEventListener('scroll', checkScroll);
   checkScroll();
 
-  // 追加だけ動くテスト用（何も画面に追加しません）
-  const form = document.getElementById('habit-form');
-  form.addEventListener('submit', e => {
+  // 習慣をローカルストレージに保存する関数
+  function saveHabits() {
+    const habits = [];
+    habitList.querySelectorAll('li').forEach(li => {
+      habits.push(li.querySelector('.habit-text').textContent);
+    });
+    localStorage.setItem('habits', JSON.stringify(habits));
+  }
+  // 保存から復元する関数
+  function loadHabits() {
+    const saved = localStorage.getItem('habits');
+    if(saved) {
+      const habits = JSON.parse(saved);
+      habits.forEach(habit => addHabitToList(habit));
+    }
+  }
+
+  // 習慣リストに項目を追加
+  function addHabitToList(text) {
+    const li = document.createElement('li');
+    li.draggable = true;
+
+    const span = document.createElement('span');
+    span.className = 'habit-text';
+    span.textContent = text;
+    li.appendChild(span);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-btn';
+    delBtn.textContent = '×';
+    delBtn.title = 'Delete habit';
+    delBtn.addEventListener('click', () => {
+      habitList.removeChild(li);
+      saveHabits();
+    });
+    li.appendChild(delBtn);
+
+    // ドラッグ&ドロップで並べ替え
+    li.addEventListener('dragstart', e => {
+      li.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', null); // Firefox対策
+      dragSrcEl = li;
+    });
+    li.addEventListener('dragend', () => {
+      li.classList.remove('dragging');
+      dragSrcEl = null;
+      saveHabits();
+    });
+    li.addEventListener('dragover', e => {
+      e.preventDefault();
+      const dragging = habitList.querySelector('.dragging');
+      if(dragging && li !== dragging) {
+        const rect = li.getBoundingClientRect();
+        const next = (e.clientY - rect.top) / rect.height > 0.5;
+        habitList.insertBefore(dragging, next ? li.nextSibling : li);
+      }
+    });
+
+    habitList.appendChild(li);
+  }
+
+  // フォーム送信処理
+  habitForm.addEventListener('submit', e => {
     e.preventDefault();
-    const input = document.getElementById('habit-name');
-    if (input.value.trim() === '') return;
-    console.log('Added habit:', input.value.trim());
-    input.value = '';
+    const text = habitNameInput.value.trim();
+    if(text === '') return;
+    addHabitToList(text);
+    saveHabits();
+    habitNameInput.value = '';
   });
+
+  // ドラッグ元要素
+  let dragSrcEl = null;
+
+  // ページロード時に保存データ復元
+  loadHabits();
 </script>
 
 </body>
