@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>毎日リセット習慣トラッカー</title>
+<title>Habit tracker</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -14,6 +14,7 @@
   }
   h1 {
     text-align: center;
+    color: #333;
   }
   #habit-form {
     display: flex;
@@ -23,25 +24,43 @@
     flex: 1;
     padding: 0.5em;
     font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+  }
+  #habit-name:focus {
+    border-color: #007bff;
   }
   #add-btn {
     padding: 0.5em 1em;
-    margin-left: 0.5em;
+    margin-left: 0;
     font-size: 1em;
     cursor: pointer;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    border-radius: 0 4px 4px 0;
+    transition: background 0.3s;
+  }
+  #add-btn:hover {
+    background: #0056b3;
   }
   ul {
     list-style: none;
     padding: 0;
   }
   li {
-    background: white;
+    background: transparent;
     margin-bottom: 0.5em;
     padding: 0.7em 1em;
     display: flex;
     align-items: center;
+    border: 1px solid #ccc;
     border-radius: 4px;
-    box-shadow: 0 0 3px #ccc;
+    cursor: grab;
+  }
+  li:active {
+    cursor: grabbing;
   }
   li input[type="checkbox"] {
     margin-right: 1em;
@@ -50,28 +69,31 @@
   }
   .habit-text {
     flex: 1;
+    user-select: none;
   }
   .delete-btn {
-    background: #e74c3c;
+    background: transparent;
     border: none;
-    color: white;
+    color: #e74c3c;
     font-weight: bold;
-    padding: 0.3em 0.7em;
-    border-radius: 3px;
+    font-size: 1.3em;
+    line-height: 1;
     cursor: pointer;
+    padding: 0 0.3em;
+    user-select: none;
   }
   .delete-btn:hover {
-    background: #c0392b;
+    color: #c0392b;
   }
 </style>
 </head>
 <body>
 
-<h1>毎日リセット習慣トラッカー</h1>
+<h1>Habit tracker</h1>
 
 <form id="habit-form">
-  <input type="text" id="habit-name" placeholder="新しい習慣を追加" required />
-  <button type="submit" id="add-btn">追加</button>
+  <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
+  <button type="submit" id="add-btn">Add</button>
 </form>
 
 <ul id="habit-list"></ul>
@@ -81,24 +103,18 @@
   const input = document.getElementById('habit-name');
   const habitList = document.getElementById('habit-list');
 
-  // ローカルストレージのキー
   const STORAGE_KEY = 'dailyHabits';
 
-  // 保存データの形式例: [{id:1,text:'歯磨き',done:false}, ...]
-
-  // 今日の日付を yyyy-mm-dd 形式で取得
   function getToday() {
     const d = new Date();
     return d.toISOString().slice(0,10);
   }
 
-  // ローカルストレージからデータ取得
   function loadHabits() {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return [];
     try {
       const obj = JSON.parse(data);
-      // 日付チェックして、日付が違えばチェック全部falseにリセット
       if (obj.date !== getToday()) {
         obj.habits.forEach(h => h.done = false);
         obj.date = getToday();
@@ -110,21 +126,22 @@
     }
   }
 
-  // ローカルストレージに保存
   function saveHabits(obj) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
   }
 
-  // 保存データを更新
   function updateStorage(habits) {
     saveHabits({date: getToday(), habits});
   }
 
-  // UIに反映
+  let habits = loadHabits();
+
   function renderHabits() {
     habitList.innerHTML = '';
     habits.forEach(habit => {
       const li = document.createElement('li');
+      li.setAttribute('draggable', 'true');
+      li.dataset.id = habit.id;
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -139,7 +156,7 @@
       span.className = 'habit-text';
 
       const delBtn = document.createElement('button');
-      delBtn.textContent = '削除';
+      delBtn.textContent = '×';
       delBtn.className = 'delete-btn';
       delBtn.addEventListener('click', () => {
         habits = habits.filter(h => h.id !== habit.id);
@@ -152,24 +169,80 @@
       li.appendChild(delBtn);
       habitList.appendChild(li);
     });
+
+    addDragAndDrop();
   }
 
-  // 初期読み込み
-  let habits = loadHabits();
-  renderHabits();
+  // ドラッグ＆ドロップの処理
+  function addDragAndDrop() {
+    let dragSrcEl = null;
 
-  // 新規追加処理
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+      this.style.opacity = '0.5';
+    }
+
+    function handleDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    function handleDragEnter() {
+      this.classList.add('over');
+    }
+
+    function handleDragLeave() {
+      this.classList.remove('over');
+    }
+
+    function handleDrop(e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (dragSrcEl !== this) {
+        // 並べ替え
+        const fromId = dragSrcEl.dataset.id;
+        const toId = this.dataset.id;
+        const fromIndex = habits.findIndex(h => h.id == fromId);
+        const toIndex = habits.findIndex(h => h.id == toId);
+        habits.splice(toIndex, 0, habits.splice(fromIndex, 1)[0]);
+        updateStorage(habits);
+        renderHabits();
+      }
+      return false;
+    }
+
+    function handleDragEnd() {
+      this.style.opacity = '1';
+      habitList.querySelectorAll('li').forEach(li => {
+        li.classList.remove('over');
+      });
+    }
+
+    const items = habitList.querySelectorAll('li');
+    items.forEach(item => {
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragenter', handleDragEnter);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('dragleave', handleDragLeave);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragend', handleDragEnd);
+    });
+  }
+
   form.addEventListener('submit', e => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
-    // idは日時＋乱数などでユニークに
     const newHabit = {id: Date.now() + Math.random(), text, done: false};
     habits.push(newHabit);
     updateStorage(habits);
     renderHabits();
     input.value = '';
   });
+
+  renderHabits();
 </script>
 
 </body>
