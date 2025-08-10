@@ -8,21 +8,38 @@
   body {
     font-family: Arial, sans-serif;
     max-width: 500px;
-    margin: 2em auto;
-    padding: 1em;
+    margin: 0 auto;
+    padding: 0 1em;
     background: #f9f9f9;
   }
-  h1 {
-    text-align: center;
+  /* 固定メニューバー */
+  #navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: #fff;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1em;
+    box-sizing: border-box;
+    z-index: 1000;
+  }
+  #date-time {
+    font-weight: bold;
     color: #333;
+    font-size: 0.9em;
+    user-select: none;
   }
   #habit-form {
     display: flex;
-    margin-bottom: 1em;
+    align-items: center;
   }
   #habit-name {
-    flex: 1;
-    padding: 0.5em;
+    padding: 0.3em 0.5em;
     font-size: 1em;
     border: 1px solid #ccc;
     border-radius: 4px 0 0 4px;
@@ -32,8 +49,7 @@
     border-color: #007bff;
   }
   #add-btn {
-    padding: 0.5em 1em;
-    margin-left: 0;
+    padding: 0.4em 0.8em;
     font-size: 1em;
     cursor: pointer;
     border: 1px solid #007bff;
@@ -45,204 +61,87 @@
   #add-btn:hover {
     background: #0056b3;
   }
-  ul {
-    list-style: none;
-    padding: 0;
+
+  /* ページトップにいるときはフォームは中央に配置 */
+  #habit-form.top {
+    position: fixed;
+    top: 60px; /* ナビバーの少し下 */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    padding: 0.5em 1em;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 999;
   }
-  li {
-    background: transparent;
-    margin-bottom: 0.5em;
-    padding: 0.7em 1em;
-    display: flex;
-    align-items: center;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: grab;
-  }
-  li:active {
-    cursor: grabbing;
-  }
-  li input[type="checkbox"] {
-    margin-right: 1em;
-    transform: scale(1.3);
-    cursor: pointer;
-  }
-  .habit-text {
-    flex: 1;
-    user-select: none;
-  }
-  .delete-btn {
-    background: transparent;
-    border: none;
-    color: #e74c3c;
-    font-weight: bold;
-    font-size: 1.3em;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 0.3em;
-    user-select: none;
-  }
-  .delete-btn:hover {
-    color: #c0392b;
+
+  /* ページの下のコンテンツ */
+  #content {
+    margin-top: 120px; /* ナビバー+フォームのスペース */
   }
 </style>
 </head>
 <body>
 
-<h1>Habit tracker</h1>
+<div id="navbar">
+  <div id="date-time">--/-- (---) --:--</div>
+  <!-- habit-formは最初はこの位置では非表示 -->
+</div>
 
-<form id="habit-form">
+<form id="habit-form" class="top">
   <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
   <button type="submit" id="add-btn">Add</button>
 </form>
 
-<ul id="habit-list"></ul>
+<div id="content">
+  <!-- ここにリストなどが入ります -->
+  <!-- 今は仮のテキスト -->
+  <p>習慣リストやその他のコンテンツがここに入ります。</p>
+</div>
 
 <script>
-  const form = document.getElementById('habit-form');
-  const input = document.getElementById('habit-name');
-  const habitList = document.getElementById('habit-list');
+  // 曜日の略称配列（日曜始まり）
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const STORAGE_KEY = 'dailyHabits';
+  function updateDateTime() {
+    const now = new Date();
+    const MM = String(now.getMonth() + 1).padStart(2, "0");
+    const DD = String(now.getDate()).padStart(2, "0");
+    const DDD = weekdays[now.getDay()];
+    const HH = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
 
-  function getToday() {
-    const d = new Date();
-    return d.toISOString().slice(0,10);
+    const formatted = `${MM}/${DD} (${DDD}) ${HH}:${mm}`;
+    document.getElementById("date-time").textContent = formatted;
   }
 
-  function loadHabits() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return [];
-    try {
-      const obj = JSON.parse(data);
-      if (obj.date !== getToday()) {
-        obj.habits.forEach(h => h.done = false);
-        obj.date = getToday();
-        saveHabits(obj);
+  // 1分毎に更新
+  updateDateTime();
+  setInterval(updateDateTime, 60000);
+
+  // フォームの位置切り替え処理
+  const habitForm = document.getElementById("habit-form");
+
+  function checkScroll() {
+    if(window.scrollY === 0) {
+      habitForm.classList.add("top");
+      if (!habitForm.parentElement) {
+        document.body.appendChild(habitForm);
       }
-      return obj.habits;
-    } catch {
-      return [];
-    }
-  }
-
-  function saveHabits(obj) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-  }
-
-  function updateStorage(habits) {
-    saveHabits({date: getToday(), habits});
-  }
-
-  let habits = loadHabits();
-
-  function renderHabits() {
-    habitList.innerHTML = '';
-    habits.forEach(habit => {
-      const li = document.createElement('li');
-      li.setAttribute('draggable', 'true');
-      li.dataset.id = habit.id;
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = habit.done;
-      checkbox.addEventListener('change', () => {
-        habit.done = checkbox.checked;
-        updateStorage(habits);
-      });
-
-      const span = document.createElement('span');
-      span.textContent = habit.text;
-      span.className = 'habit-text';
-
-      const delBtn = document.createElement('button');
-      delBtn.textContent = '×';
-      delBtn.className = 'delete-btn';
-      delBtn.addEventListener('click', () => {
-        habits = habits.filter(h => h.id !== habit.id);
-        updateStorage(habits);
-        renderHabits();
-      });
-
-      li.appendChild(checkbox);
-      li.appendChild(span);
-      li.appendChild(delBtn);
-      habitList.appendChild(li);
-    });
-
-    addDragAndDrop();
-  }
-
-  // ドラッグ＆ドロップの処理
-  function addDragAndDrop() {
-    let dragSrcEl = null;
-
-    function handleDragStart(e) {
-      dragSrcEl = this;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/html', this.innerHTML);
-      this.style.opacity = '0.5';
-    }
-
-    function handleDragOver(e) {
-      if (e.preventDefault) e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return false;
-    }
-
-    function handleDragEnter() {
-      this.classList.add('over');
-    }
-
-    function handleDragLeave() {
-      this.classList.remove('over');
-    }
-
-    function handleDrop(e) {
-      if (e.stopPropagation) e.stopPropagation();
-      if (dragSrcEl !== this) {
-        // 並べ替え
-        const fromId = dragSrcEl.dataset.id;
-        const toId = this.dataset.id;
-        const fromIndex = habits.findIndex(h => h.id == fromId);
-        const toIndex = habits.findIndex(h => h.id == toId);
-        habits.splice(toIndex, 0, habits.splice(fromIndex, 1)[0]);
-        updateStorage(habits);
-        renderHabits();
+    } else {
+      habitForm.classList.remove("top");
+      const navbar = document.getElementById("navbar");
+      if (habitForm.parentElement !== navbar) {
+        navbar.appendChild(habitForm);
       }
-      return false;
     }
-
-    function handleDragEnd() {
-      this.style.opacity = '1';
-      habitList.querySelectorAll('li').forEach(li => {
-        li.classList.remove('over');
-      });
-    }
-
-    const items = habitList.querySelectorAll('li');
-    items.forEach(item => {
-      item.addEventListener('dragstart', handleDragStart);
-      item.addEventListener('dragenter', handleDragEnter);
-      item.addEventListener('dragover', handleDragOver);
-      item.addEventListener('dragleave', handleDragLeave);
-      item.addEventListener('drop', handleDrop);
-      item.addEventListener('dragend', handleDragEnd);
-    });
   }
 
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text) return;
-    const newHabit = {id: Date.now() + Math.random(), text, done: false};
-    habits.push(newHabit);
-    updateStorage(habits);
-    renderHabits();
-    input.value = '';
-  });
+  window.addEventListener("scroll", checkScroll);
+  // 初回実行
+  checkScroll();
 
-  renderHabits();
+  // ここに習慣追加の処理などを後で足せます
 </script>
 
 </body>
