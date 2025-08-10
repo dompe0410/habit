@@ -28,10 +28,9 @@
     box-sizing: border-box;
     z-index: 1000;
   }
-  #date-time {
-    font-weight: 600;
-    font-size: 1.3em;
-    letter-spacing: 0.15em;
+  #title {
+    font-weight: 700;
+    font-size: 1.5em;
     color: #000000;
     user-select: none;
   }
@@ -45,15 +44,19 @@
     background: transparent;
     padding: 0.3em;
     border-radius: 3px;
-    transition: all 0.3s ease;
+    transition: opacity 0.3s ease;
     z-index: 999;
+    opacity: 1;
   }
   #habit-form.in-navbar {
     position: static;
     transform: none;
     background: transparent;
     padding: 0;
-    border-radius: 3px;
+    opacity: 0;
+  }
+  #habit-form.visible {
+    opacity: 1;
   }
   #habit-name {
     padding: 0.4em 0.6em;
@@ -64,6 +67,8 @@
     outline: none;
     color: #000000;
     width: 180px;
+    height: 34px;
+    box-sizing: border-box;
   }
   #habit-name::placeholder {
     color: #666;
@@ -73,15 +78,17 @@
   }
   #add-btn {
     margin-left: 0.5em;
-    padding: 0.45em 1.1em;
+    padding: 0 1.2em;
     font-size: 1em;
     cursor: pointer;
     border: 1px solid #000000;
     background: #d9d7d3;
     color: black;
     border-radius: 3px;
-    transition: background 0.3s;
     font-weight: 600;
+    height: 34px;
+    box-sizing: border-box;
+    transition: background 0.3s;
   }
   #add-btn:hover {
     background: #bfbdb8;
@@ -97,8 +104,8 @@
 <body>
 
 <div id="navbar">
-  <div id="date-time">--/--  --:--</div>
-  <form id="habit-form" class="in-navbar">
+  <div id="title">Habit Tracker</div>
+  <form id="habit-form" class="visible">
     <input type="text" id="habit-name" placeholder="Add new habit" required autocomplete="off" />
     <button type="submit" id="add-btn">ADD</button>
   </form>
@@ -109,54 +116,41 @@
 </div>
 
 <script>
-  // 日付・時間の更新（曜日なし）
-  function pad(num) {
-    return num.toString().padStart(2, '0');
-  }
-  function updateDateTime() {
-    const now = new Date();
-    const MM = pad(now.getMonth() + 1);
-    const DD = pad(now.getDate());
-    const HH = pad(now.getHours());
-    const mm = pad(now.getMinutes());
-    const formatted = `${MM}/${DD} ${HH}:${mm}`;
-    document.getElementById('date-time').textContent = formatted;
-  }
-  updateDateTime();
-  setInterval(updateDateTime, 60000);
-
-  // スクロールに応じてフォームの位置を切り替え
   const habitForm = document.getElementById('habit-form');
   const navbar = document.getElementById('navbar');
 
+  // スクロールに応じてフォームの位置と表示切り替え（フェード付き）
   function checkScroll() {
     if(window.scrollY === 0) {
-      // ページトップなら画面中央に固定
-      habitForm.classList.remove('in-navbar');
+      // ページトップなら画面中央固定、フォーム表示
+      if(habitForm.classList.contains('in-navbar')) {
+        habitForm.classList.remove('in-navbar');
+        // 少し遅延させてフェードイン
+        setTimeout(() => habitForm.classList.add('visible'), 10);
+      }
       habitForm.style.position = 'fixed';
       habitForm.style.top = '80px';
       habitForm.style.left = '50%';
       habitForm.style.transform = 'translateX(-50%)';
-      habitForm.style.background = 'transparent';
-      habitForm.style.padding = '0.3em';
-      habitForm.style.zIndex = '999';
     } else {
-      // スクロールしたらメニューバー内に移動
-      habitForm.classList.add('in-navbar');
-      habitForm.style.position = 'static';
-      habitForm.style.top = '';
-      habitForm.style.left = '';
-      habitForm.style.transform = '';
-      habitForm.style.background = 'transparent';
-      habitForm.style.padding = '0';
-      habitForm.style.zIndex = 'auto';
-      if (habitForm.parentElement !== navbar) {
-        navbar.appendChild(habitForm);
+      // スクロールしたらメニューバー内に移動してフェードアウト後表示
+      if(!habitForm.classList.contains('in-navbar')) {
+        habitForm.classList.remove('visible');
+        setTimeout(() => {
+          habitForm.classList.add('in-navbar');
+          habitForm.classList.add('visible');
+          if(habitForm.parentElement !== navbar) {
+            navbar.appendChild(habitForm);
+          }
+          habitForm.style.position = 'static';
+          habitForm.style.top = '';
+          habitForm.style.left = '';
+          habitForm.style.transform = '';
+        }, 300);
       }
     }
   }
   window.addEventListener('scroll', checkScroll);
-  // 初回呼び出し
   checkScroll();
 
   // 追加だけ動くテスト用（何も画面に追加しません）
